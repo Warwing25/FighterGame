@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.idea/
+.claude/
+Character Models/
+desktop.ini
+.env
+.env.local
+*.egg-info/

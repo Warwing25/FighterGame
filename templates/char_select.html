@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FighterGame – Character Select</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a2e;
+      color: #eee;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    h1 { font-size: 2.4rem; margin-bottom: 8px; color: #e94560; letter-spacing: 2px; }
+    p.subtitle { color: #aaa; margin-bottom: 12px; }
+    .room-info {
+      color: #7be;
+      font-size: 1rem;
+      margin-bottom: 8px;
+      background: #0f1b2d;
+      padding: 6px 18px;
+      border-radius: 6px;
+      border: 1px solid #2b5278;
+      letter-spacing: 2px;
+    }
+    .waiting-msg {
+      color: #f0b429;
+      font-size: 0.95rem;
+      margin-bottom: 20px;
+      min-height: 24px;
+    }
+    .select-area {
+      display: flex;
+      gap: 64px;
+      justify-content: center;
+      flex-wrap: nowrap;
+      margin-bottom: 32px;
+      transform-origin: top center;
+      will-change: transform;
+    }
+    .player-col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .player-col h2 { font-size: 1.2rem; color: #e94560; margin-bottom: 4px; }
+
+    /* ── Honeycomb grid ── */
+    .hex-grid {
+      position: relative;
+      width: 340px;
+      height: 340px;
+    }
+    :root {
+      --hex-w: 100px;
+      --hex-h: 112px;
+      --hex-gap: 6px;
+      --row-step: 84px;
+      --col-step: 106px;
+      --half-col: 53px;
+    }
+    .hex-cell {
+      position: absolute;
+      width: var(--hex-w);
+      height: var(--hex-h);
+      cursor: pointer;
+      transition: transform 0.15s, filter 0.15s;
+    }
+    .hex-cell:hover { transform: scale(1.1); z-index: 2; }
+    .hex-border {
+      position: absolute;
+      inset: 0;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      background: #2a2a4a;
+      transition: background 0.15s;
+    }
+    .hex-inner {
+      position: absolute;
+      inset: 3px;
+      z-index: 1;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      overflow: hidden;
+    }
+    .hex-cell img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: filter 0.15s;
+    }
+    .hex-cell .hex-name {
+      position: absolute;
+      top: 18%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      font-weight: bold;
+      color: #d4a825;
+      text-align: center;
+      line-height: 1;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.7);
+      white-space: nowrap;
+      z-index: 2;
+      transition: font-size 0.2s, color 0.2s;
+      pointer-events: none;
+    }
+    .hex-cell:hover .hex-name { font-size: 0.85rem; color: #ffd700; }
+    .hex-cell:hover .hex-border { background: #5580aa; }
+
+    .hex-cell.selected-p1 .hex-border { background: #e84545; }
+    .hex-cell.selected-p1 .hex-name { color: #ffd700; font-size: 0.85rem; }
+    .hex-cell.selected-p2 .hex-border { background: #45b8e8; }
+    .hex-cell.selected-p2 .hex-name { color: #ffd700; font-size: 0.85rem; }
+
+    /* Mirror P2 icons */
+    .player-col.p2 .hex-cell img { transform: scaleX(-1); }
+
+    /* Row / column positions */
+    .hex-cell[data-idx="0"] { left: 0; top: 0; }
+    .hex-cell[data-idx="1"] { left: var(--col-step); top: 0; }
+    .hex-cell[data-idx="2"] { left: calc(var(--col-step) * 2); top: 0; }
+    .hex-cell[data-idx="3"] { left: var(--half-col); top: var(--row-step); }
+    .hex-cell[data-idx="4"] { left: calc(var(--half-col) + var(--col-step)); top: var(--row-step); }
+    .hex-cell[data-idx="5"] { left: calc(var(--half-col) + var(--col-step) * 2); top: var(--row-step); }
+    .hex-cell[data-idx="6"] { left: var(--col-step); top: calc(var(--row-step) * 2); }
+    .hex-cell[data-idx="7"] { left: calc(var(--col-step) * 2); top: calc(var(--row-step) * 2); }
+
+    #start-btn {
+      background: #e94560;
+      color: #fff;
+      border: none;
+      padding: 14px 48px;
+      font-size: 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    #start-btn.ready { opacity: 1; pointer-events: auto; }
+    #start-btn:hover.ready { background: #c73652; }
+    .selection-summary {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-bottom: 12px;
+      height: 20px;
+    }
+
+    footer {
+      margin-top: 16px;
+      font-size: 0.8rem;
+    }
+    footer a { color: #555; text-decoration: none; }
+    footer a:hover { color: #e94560; }
+  </style>
+</head>
+<body>
+  <h1>FighterGame</h1>
+
+  {% if not bot_play %}
+  <div class="room-info">Room: {{ room_id }}</div>
+  {% endif %}
+
+  {% if bot_play %}
+  <p class="subtitle">Pick a character for each side, then start!</p>
+  {% elif player_num == 1 %}
+  <p class="subtitle">Pick your character (Player 1 – Red)</p>
+  {% else %}
+  <p class="subtitle">Pick your character (Player 2 – Blue)</p>
+  {% endif %}
+
+  <p class="waiting-msg" id="waiting-msg"></p>
+
+  <div class="select-area">
+    {% if bot_play %}
+    <!-- Bot mode: show both grids like the original -->
+    <div class="player-col p1">
+      <h2>Player 1 (Red)</h2>
+      <div class="hex-grid">
+        {% for num, name in characters.items() %}
+        <div class="hex-cell" data-player="1" data-char="{{ num }}" data-idx="{{ loop.index0 }}">
+          <div class="hex-border"></div>
+          <div class="hex-inner">
+            <img src="{{ url_for('static', filename='icons/' + char_images[num]) }}" alt="{{ name }}">
+            <span class="hex-name">{{ name }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="player-col p2">
+      <h2>Bot (Blue)</h2>
+      <div class="hex-grid">
+        {% for num, name in characters.items() %}
+        <div class="hex-cell" data-player="2" data-char="{{ num }}" data-idx="{{ loop.index0 }}">
+          <div class="hex-border"></div>
+          <div class="hex-inner">
+            <img src="{{ url_for('static', filename='icons/' + char_images[num]) }}" alt="{{ name }}">
+            <span class="hex-name">{{ name }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <!-- Online mode: show only your grid -->
+    <div class="player-col {{ 'p1' if player_num == 1 else 'p2' }}">
+      <h2>Your Character</h2>
+      <div class="hex-grid">
+        {% for num, name in characters.items() %}
+        <div class="hex-cell" data-player="{{ player_num }}" data-char="{{ num }}" data-idx="{{ loop.index0 }}">
+          <div class="hex-border"></div>
+          <div class="hex-inner">
+            <img src="{{ url_for('static', filename='icons/' + char_images[num]) }}" alt="{{ name }}">
+            <span class="hex-name">{{ name }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <p class="selection-summary" id="summary"></p>
+  <button id="start-btn">Lock In</button>
+
+  <footer>
+    <a href="/reset">Back to Lobby</a>
+  </footer>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    const ROOM_ID    = '{{ room_id }}';
+    const PLAYER_NUM = {{ player_num }};
+    const BOT_PLAY   = {{ 'true' if bot_play else 'false' }};
+
+    const socket = io();
+    let sel = { 1: null, 2: null };
+    let locked = false;
+
+    document.querySelectorAll('.hex-cell').forEach(cell => {
+      cell.addEventListener('click', () => {
+        if (locked) return;
+        const player = cell.dataset.player;
+        const char = cell.dataset.char;
+        sel[player] = char;
+
+        document.querySelectorAll(`.hex-cell.selected-p${player}`).forEach(c => {
+          c.classList.remove(`selected-p${player}`);
+        });
+        cell.classList.add(`selected-p${player}`);
+        updateUI();
+      });
+    });
+
+    function updateUI() {
+      let ready;
+      if (BOT_PLAY) {
+        ready = sel[1] && sel[2];
+        const c1Name = getCharName(1);
+        const c2Name = getCharName(2);
+        document.getElementById('summary').textContent =
+          ready ? `P1: ${c1Name}  vs  Bot: ${c2Name}` : '';
+      } else {
+        ready = sel[PLAYER_NUM] !== null;
+        const name = getCharName(PLAYER_NUM);
+        document.getElementById('summary').textContent =
+          ready ? `Selected: ${name}` : '';
+      }
+      const btn = document.getElementById('start-btn');
+      btn.classList.toggle('ready', !!ready);
+    }
+
+    function getCharName(player) {
+      if (!sel[player]) return '?';
+      const el = document.querySelector(`.hex-cell[data-player="${player}"][data-char="${sel[player]}"] .hex-name`);
+      return el ? el.textContent : '?';
+    }
+
+    document.getElementById('start-btn').addEventListener('click', () => {
+      if (locked) return;
+      if (BOT_PLAY) {
+        if (!sel[1] || !sel[2]) return;
+        locked = true;
+        socket.emit('select_character', { char_id: sel[1], char2_id: sel[2] });
+        document.getElementById('waiting-msg').textContent = 'Starting game...';
+      } else {
+        if (!sel[PLAYER_NUM]) return;
+        locked = true;
+        socket.emit('select_character', { char_id: sel[PLAYER_NUM] });
+        document.getElementById('start-btn').style.opacity = '0.4';
+        document.getElementById('start-btn').style.pointerEvents = 'none';
+        document.getElementById('waiting-msg').textContent = 'Waiting for opponent to pick...';
+      }
+    });
+
+    socket.on('opponent_picked', () => {
+      // Opponent selected their character (still waiting for us or resolving)
+    });
+
+    socket.on('both_ready', (data) => {
+      window.location.href = '/game/' + data.room_id;
+    });
+
+    socket.on('opponent_disconnected', () => {
+      document.getElementById('waiting-msg').textContent = 'Opponent disconnected.';
+      locked = false;
+    });
+
+    /* ── Autoscale hex grids ── */
+    const selectArea = document.querySelector('.select-area');
+    let naturalW = null, naturalH = null;
+
+    function autoScale() {
+      selectArea.style.transform = 'none';
+      selectArea.style.marginBottom = '';
+      if (!naturalW) {
+        naturalW = selectArea.offsetWidth;
+        naturalH = selectArea.offsetHeight;
+      }
+      const availW = window.innerWidth - 48;
+      const availH = window.innerHeight - 280;
+      const scaleX = availW / naturalW;
+      const scaleY = availH / naturalH;
+      const scale = Math.min(scaleX, scaleY, 2.5);
+      if (scale > 1) {
+        selectArea.style.transform = `scale(${scale})`;
+        const scaledH = naturalH * scale;
+        selectArea.style.marginBottom = (scaledH - naturalH) + 'px';
+      }
+    }
+
+    autoScale();
+    window.addEventListener('resize', autoScale);
+  </script>
+</body>
+</html>

@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FighterGame</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a2e;
+      color: #eee;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 16px;
+    }
+    h1 { font-size: 1.6rem; color: #e94560; margin-bottom: 4px; letter-spacing: 2px; }
+
+    /* ── Layout ── */
+    .arena {
+      display: grid;
+      grid-template-columns: 200px 1fr 200px;
+      width: 100%;
+      max-width: 1100px;
+      gap: 12px;
+      margin-top: 16px;
+      align-items: start;
+    }
+
+    /* ── Side panels (controls) ── */
+    .side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ── Center column holds portraits + VS info ── */
+    .center {
+      position: relative;
+      min-height: 500px;
+    }
+
+    /* ── Character models inside center ── */
+    .char-portrait {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 280px;
+      height: 460px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .char-portrait.p1 {
+      left: 0;
+    }
+    .char-portrait.p2 {
+      right: 0;
+    }
+    .char-model {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 0 16px rgba(0,0,0,0.8));
+    }
+    /* P2 model faces left (mirrored) */
+    .char-portrait.p2 .char-model {
+      transform: scaleX(-1);
+    }
+    /* GBomb enlarged 20% to match other characters */
+    .char-model.gbomb-model {
+      transform: scale(1.2);
+      transform-origin: bottom center;
+    }
+    .char-portrait.p2 .char-model.gbomb-model {
+      transform: scaleX(-1) scale(1.2);
+      transform-origin: bottom center;
+    }
+    .player-name {
+      font-size: 1rem;
+      font-weight: bold;
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+    .p1-name { background: #3a1a1a; color: #ff8080; }
+    .p2-name { background: #1a2f3a; color: #80d4ff; }
+
+    /* ── Health bar ── */
+    .health-wrap {
+      width: 100%;
+      background: #0f0f1a;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 28px;
+      border: 1px solid #333;
+      position: relative;
+    }
+    .health-bar {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+    .p1-bar { background: linear-gradient(90deg, #e84545, #c73030); }
+    .p2-bar { background: linear-gradient(90deg, #2b9be8, #1a6fa8); }
+    .health-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 0 0 4px #000;
+    }
+
+    /* ── Attributes ── */
+    .attrs {
+      width: 100%;
+      background: #16213e;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      color: #aaa;
+      min-height: 60px;
+    }
+    .attrs div { margin-bottom: 3px; }
+    .attrs span { color: #fff; font-weight: bold; }
+    .attr-note { color: #556; font-style: italic; font-size: 0.72rem; margin-top: 4px; }
+
+    /* ── Move buttons ── */
+    .move-buttons { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .move-btn {
+      padding: 10px 14px;
+      border: 2px solid transparent;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      width: 100%;
+      text-align: center;
+    }
+    .move-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    /* Opponent buttons: always show tooltip on hover even when disabled */
+    .move-btn.opponent-btn { pointer-events: auto; }
+    .p1-btn { background: #3a1a1a; color: #ff9090; border-color: #5a2020; }
+    .p1-btn:hover:not(:disabled) { background: #5a1a1a; border-color: #e84545; color: #fff; }
+    .p1-btn.selected { background: #7a1a1a; border-color: #e84545; color: #fff; }
+    .p2-btn { background: #1a2f3a; color: #80d4ff; border-color: #1a4a6a; }
+    .p2-btn:hover:not(:disabled) { background: #1a3f5a; border-color: #2b9be8; color: #fff; }
+    .p2-btn.selected { background: #1a4f7a; border-color: #2b9be8; color: #fff; }
+
+    /* ── Opponent section label ── */
+    .opponent-label {
+      color: #556;
+      font-size: 0.78rem;
+      font-style: italic;
+      margin-bottom: 2px;
+    }
+
+    /* ── Center panel (VS info floats above portraits) ── */
+    .vs-info {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 14px;
+      padding-top: 4px;
+    }
+    .vs-display {
+      font-size: 1.1rem;
+      background: #16213e;
+      border-radius: 8px;
+      padding: 10px 20px;
+      text-align: center;
+      min-height: 50px;
+      width: 100%;
+    }
+    .vs-display .moves { font-size: 1rem; color: #ccc; margin-top: 4px; }
+    .vs-display .moves .m1 { color: #ff9090; }
+    .vs-display .moves .m2 { color: #80d4ff; }
+
+    #status-msg {
+      font-size: 0.9rem;
+      color: #aaa;
+      text-align: center;
+      min-height: 22px;
+    }
+    #status-msg.waiting { color: #f0b429; }
+    #status-msg.result  { color: #68d; }
+
+    #win-overlay {
+      display: none;
+      background: rgba(0,0,0,0.85);
+      border-radius: 12px;
+      padding: 28px 36px;
+      text-align: center;
+      border: 2px solid #e94560;
+    }
+    #win-overlay h2 { font-size: 1.6rem; color: #e94560; margin-bottom: 16px; }
+    #win-overlay .win-sub { color: #ccc; margin-bottom: 20px; }
+    #win-overlay a.btn, #win-overlay button.btn {
+      display: inline-block;
+      background: #e94560;
+      color: #fff;
+      text-decoration: none;
+      padding: 10px 28px;
+      border-radius: 6px;
+      margin: 4px;
+      transition: background 0.2s;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    #win-overlay a.btn:hover, #win-overlay button.btn:hover { background: #c73652; }
+    #win-overlay a.btn.secondary, #win-overlay button.btn.secondary {
+      background: #16213e;
+      border: 1px solid #555;
+    }
+    #win-overlay a.btn.secondary:hover, #win-overlay button.btn.secondary:hover { background: #0f3460; }
+
+    /* ── Disconnect notification ── */
+    .disconnect-banner {
+      display: none;
+      background: #3a1a1a;
+      border: 1px solid #e94560;
+      border-radius: 8px;
+      padding: 12px 20px;
+      text-align: center;
+      color: #ff8080;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+      width: 100%;
+      max-width: 500px;
+    }
+    .disconnect-banner a {
+      color: #7be;
+      margin-left: 12px;
+    }
+
+    /* ── Round log ── */
+    .round-log {
+      width: 100%;
+      max-width: 900px;
+      margin-top: 16px;
+      background: #0f1520;
+      border: 1px solid #1e3050;
+      border-radius: 8px;
+      padding: 10px 14px;
+      max-height: 160px;
+      overflow-y: auto;
+      font-size: 0.82rem;
+      color: #aac;
+      line-height: 1.6;
+      scroll-behavior: smooth;
+    }
+    .round-log.empty { color: #444; font-style: italic; }
+    .log-entry {
+      padding: 5px 0;
+      border-bottom: 1px solid #1a2540;
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-entry .round-num { color: #556; font-size: 0.75rem; margin-right: 6px; }
+    .log-entry .log-p1 { color: #ff9090; font-weight: bold; }
+    .log-entry .log-p2 { color: #80d4ff; font-weight: bold; }
+
+    footer {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: #555;
+    }
+    footer a { color: #555; text-decoration: none; }
+    footer a:hover { color: #e94560; }
+
+    /* ── Tooltip ── */
+    .tip {
+      position: fixed;
+      z-index: 9999;
+      background: #0f1b2d;
+      border: 1px solid #2b5278;
+      border-radius: 8px;
+      padding: 10px 14px;
+      max-width: 240px;
+      font-size: 0.82rem;
+      color: #cee;
+      pointer-events: none;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.6);
+      line-height: 1.5;
+      display: none;
+    }
+    .tip strong { color: #7be; display: block; margin-bottom: 4px; font-size: 0.88rem; }
+  </style>
+</head>
+<body>
+  <h1>FighterGame</h1>
+
+  <!-- Disconnect notification -->
+  <div class="disconnect-banner" id="disconnect-banner">
+    Opponent disconnected.
+    <a href="/reset">Back to Lobby</a>
+  </div>
+
+  <div class="arena">
+    <!-- ────── Player 1 controls ────── -->
+    <div class="side" id="p1-side">
+      <div class="player-name p1-name">{{ char1_name }}</div>
+      <div class="health-wrap">
+        <div class="health-bar p1-bar" id="p1-bar" style="width:100%"></div>
+        <div class="health-text" id="p1-hp">{{ state.p1health }}</div>
+      </div>
+      <div class="attrs" id="p1-attrs">
+        {% for key, val in attrs1.items() %}
+        <div>{{ key }}: <span>{{ val }}</span></div>
+        {% endfor %}
+      </div>
+      {% if player_num == 1 %}
+      <div class="move-buttons">
+        {% for label in move_labels %}
+        <button class="move-btn p1-btn my-btn" data-idx="{{ loop.index0 }}"
+          data-tip-title="{{ label }}" data-tip-body="{{ tooltips1[loop.index0] }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="opponent-label">Opponent's moves</div>
+      <div class="move-buttons">
+        {% for label in move_labels %}
+        <button class="move-btn p1-btn opponent-btn" disabled
+          data-tip-title="{{ label }}" data-tip-body="{{ tooltips1[loop.index0] }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ────── Center (portraits + VS info) ────── -->
+    <div class="center">
+      <div class="char-portrait p1">
+        <img class="char-model{{ ' gbomb-model' if char1_image == 'GBomb.png' else '' }}" src="{{ url_for('static', filename='models/' + char1_image) }}" alt="{{ char1_name }}">
+      </div>
+      <div class="char-portrait p2">
+        <img class="char-model{{ ' gbomb-model' if char2_image == 'GBomb.png' else '' }}" src="{{ url_for('static', filename='models/' + char2_image) }}" alt="{{ char2_name }}">
+      </div>
+      <div class="vs-info">
+        <div class="vs-display">
+          <div style="color:#666;font-size:0.8rem;">LAST ROUND</div>
+          <div class="moves">
+            <span class="m1" id="last-m1">–</span>
+            &nbsp;vs&nbsp;
+            <span class="m2" id="last-m2">–</span>
+          </div>
+        </div>
+        <div id="status-msg">Select your move!</div>
+        <div id="win-overlay">
+          <h2 id="win-title"></h2>
+          <div class="win-sub" id="win-sub"></div>
+          <button class="btn" id="rematch-btn">Rematch</button>
+          <a href="/reset" class="btn secondary">Back to Lobby</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ────── Player 2 controls ────── -->
+    <div class="side" id="p2-side">
+      <div class="player-name p2-name">{{ char2_name }}</div>
+      <div class="health-wrap">
+        <div class="health-bar p2-bar" id="p2-bar" style="width:100%"></div>
+        <div class="health-text" id="p2-hp">{{ state.p2health }}</div>
+      </div>
+      <div class="attrs" id="p2-attrs">
+        {% for key, val in attrs2.items() %}
+        <div>{{ key }}: <span>{{ val }}</span></div>
+        {% endfor %}
+      </div>
+      {% if bot_play %}
+      <div style="color:#555;font-size:0.85rem;padding:10px;text-align:center;">Bot is playing</div>
+      <div class="move-buttons">
+        {% for label in move_labels %}
+        <button class="move-btn p2-btn opponent-btn" disabled
+          data-tip-title="{{ label }}" data-tip-body="{{ tooltips2[loop.index0] }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+      {% elif player_num == 2 %}
+      <div class="move-buttons">
+        {% for label in move_labels %}
+        <button class="move-btn p2-btn my-btn" data-idx="{{ loop.index0 }}"
+          data-tip-title="{{ label }}" data-tip-body="{{ tooltips2[loop.index0] }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="opponent-label">Opponent's moves</div>
+      <div class="move-buttons">
+        {% for label in move_labels %}
+        <button class="move-btn p2-btn opponent-btn" disabled
+          data-tip-title="{{ label }}" data-tip-body="{{ tooltips2[loop.index0] }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Round log -->
+  <div class="round-log empty" id="round-log">Round results will appear here...</div>
+
+  <!-- Tooltip element -->
+  <div class="tip" id="tip"><strong id="tip-title"></strong><span id="tip-body"></span></div>
+
+  <footer>
+    <a href="/reset">Back to Lobby</a>
+  </footer>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    const ROOM_ID    = '{{ room_id }}';
+    const PLAYER_NUM = {{ player_num }};
+    const MAX_HEALTH = {{ state.k1 }};
+    const BOT_PLAY   = {{ 'true' if bot_play else 'false' }};
+
+    const socket = io();
+    let pendingMove = null;
+    let gameOver = {{ 'true' if state.game_over else 'false' }};
+    let waitingForResult = false;
+
+    /* ── My button click handlers ── */
+    document.querySelectorAll('.my-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (gameOver || waitingForResult) return;
+        const idx = parseInt(btn.dataset.idx);
+        pendingMove = idx;
+
+        document.querySelectorAll('.my-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        // Auto-submit on click
+        submitMove();
+      });
+    });
+
+    function submitMove() {
+      if (pendingMove === null) return;
+      waitingForResult = true;
+      setMyButtonsEnabled(false);
+      socket.emit('submit_move', { move_idx: pendingMove });
+
+      const msg = document.getElementById('status-msg');
+      if (BOT_PLAY) {
+        msg.textContent = 'Resolving...';
+      } else {
+        msg.textContent = 'Waiting for opponent...';
+      }
+      msg.className = 'waiting';
+    }
+
+    /* ── SocketIO event handlers ── */
+    socket.on('move_received', () => {
+      // Server confirmed our move was stored
+    });
+
+    socket.on('turn_result', (data) => {
+      pendingMove = null;
+      waitingForResult = false;
+      document.querySelectorAll('.my-btn').forEach(b => b.classList.remove('selected'));
+      applyState(data);
+    });
+
+    socket.on('game_reset', (data) => {
+      gameOver = false;
+      pendingMove = null;
+      waitingForResult = false;
+      roundNum = 0;
+      document.getElementById('round-log').innerHTML = 'Round results will appear here...';
+      document.getElementById('round-log').classList.add('empty');
+      document.getElementById('win-overlay').style.display = 'none';
+      applyState(data);
+      setMyButtonsEnabled(true);
+      updateStatus();
+    });
+
+    socket.on('opponent_disconnected', () => {
+      document.getElementById('disconnect-banner').style.display = 'block';
+    });
+
+    const char1Name = '{{ char1_name }}';
+    const char2Name = '{{ char2_name }}';
+    let roundNum = 0;
+
+    function updateStatus() {
+      const msg = document.getElementById('status-msg');
+      if (!waitingForResult && !gameOver) {
+        msg.textContent = 'Select your move!';
+        msg.className = 'waiting';
+      }
+    }
+
+    function applyState(s) {
+      /* Health bars */
+      const p1pct = Math.max(0, s.p1health) / MAX_HEALTH * 100;
+      const p2pct = Math.max(0, s.p2health) / MAX_HEALTH * 100;
+      document.getElementById('p1-bar').style.width = p1pct + '%';
+      document.getElementById('p2-bar').style.width = p2pct + '%';
+      document.getElementById('p1-hp').textContent  = Math.min(s.p1health, s.k1);
+      document.getElementById('p2-hp').textContent  = Math.min(s.p2health, s.k2);
+
+      /* Last moves */
+      document.getElementById('last-m1').textContent = s.last_p1move || '–';
+      document.getElementById('last-m2').textContent = s.last_p2move || '–';
+
+      /* Attributes */
+      renderAttrs('p1-attrs', s.attrs1);
+      renderAttrs('p2-attrs', s.attrs2);
+
+      /* Round log */
+      if (s.narrative) appendLog(s.narrative, s.last_p1move, s.last_p2move);
+
+      /* Status */
+      const msg = document.getElementById('status-msg');
+      msg.textContent = '';
+      msg.className   = 'result';
+
+      /* Win state */
+      if (s.game_over) {
+        gameOver = true;
+        showWin(s.winner);
+      } else {
+        setMyButtonsEnabled(true);
+        updateStatus();
+      }
+    }
+
+    function appendLog(text, move1, move2) {
+      roundNum++;
+      const log = document.getElementById('round-log');
+      log.classList.remove('empty');
+      const safe = text
+        .replace(new RegExp(char1Name, 'g'), `<span class="log-p1">${char1Name}</span>`)
+        .replace(new RegExp(char2Name, 'g'), `<span class="log-p2">${char2Name}</span>`);
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="round-num">R${roundNum}</span>${safe}`;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function renderAttrs(id, attrs) {
+      const el = document.getElementById(id);
+      el.innerHTML = Object.entries(attrs)
+        .map(([k, v]) => k.startsWith('_note')
+          ? `<div class="attr-note">${v}</div>`
+          : `<div>${k}: <span>${v}</span></div>`)
+        .join('');
+    }
+
+    function setMyButtonsEnabled(enabled) {
+      document.querySelectorAll('.my-btn').forEach(b => b.disabled = !enabled);
+    }
+
+    function showWin(winner) {
+      const ov  = document.getElementById('win-overlay');
+      const ttl = document.getElementById('win-title');
+      const sub = document.getElementById('win-sub');
+      if (winner === 1)      { ttl.textContent = '\uD83C\uDFC6 Player 1 Wins!'; sub.textContent = '{{ char1_name }} is victorious!'; }
+      else if (winner === 2) { ttl.textContent = '\uD83C\uDFC6 Player 2 Wins!'; sub.textContent = '{{ char2_name }} is victorious!'; }
+      else                   { ttl.textContent = 'It\'s a Tie!';       sub.textContent = 'Both fighters fell!'; }
+      ov.style.display = 'block';
+      setMyButtonsEnabled(false);
+    }
+
+    /* ── Rematch via SocketIO ── */
+    document.getElementById('rematch-btn').addEventListener('click', () => {
+      socket.emit('request_rematch');
+    });
+
+    /* ── Tooltip logic (works on both own and opponent buttons) ── */
+    const tip      = document.getElementById('tip');
+    const tipTitle = document.getElementById('tip-title');
+    const tipBody  = document.getElementById('tip-body');
+    const PAD = 14;
+
+    document.querySelectorAll('[data-tip-body]').forEach(el => {
+      el.addEventListener('mouseenter', e => {
+        tipTitle.textContent = el.dataset.tipTitle;
+        tipBody.textContent  = el.dataset.tipBody;
+        tip.style.display = 'block';
+        positionTip(e);
+      });
+      el.addEventListener('mousemove', positionTip);
+      el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    });
+
+    function positionTip(e) {
+      let x = e.clientX + PAD;
+      let y = e.clientY + PAD;
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      if (x + tw > window.innerWidth)  x = e.clientX - tw - PAD;
+      if (y + th > window.innerHeight) y = e.clientY - th - PAD;
+      tip.style.left = x + 'px';
+      tip.style.top  = y + 'px';
+    }
+  </script>
+</body>
+</html>

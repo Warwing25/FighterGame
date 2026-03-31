@@ -1,0 +1,12 @@
+.venv
+__pycache__
+.git
+.idea
+.claude
+Character Models
+desktop.ini
+.env
+.env.local
+*.md
+.github
+run.bat
