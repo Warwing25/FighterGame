@@ -1,6 +1,9 @@
 import random
 import time
-from graphics import *
+try:
+    from graphics import *
+except ImportError:
+    pass  # graphics.py not needed in web/Docker mode
 def gameend(player1, player2, p1win, p2win):
     if player1 < 1 and player2 < 1:
         return (p1win), (p2win)
