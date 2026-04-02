@@ -147,6 +147,8 @@ MOVE_LABELS = ['Strong', 'Light', 'Shield', 'Counter', 'Grab', 'Taunt']
 rooms = {}
 # Maps socket sid -> room_id for disconnect handling
 sid_to_room = {}
+# Pending disconnect timers: (room_id, player_num) -> greenlet
+_disconnect_timers = {}
 
 
 def generate_room_code():
@@ -512,20 +514,35 @@ def handle_connect():
         join_room(room_id)
         rooms[room_id]['players'][player_num] = request.sid
         sid_to_room[request.sid] = (room_id, player_num)
+        # Cancel any pending disconnect timer for this player (page navigation)
+        key = (room_id, player_num)
+        timer = _disconnect_timers.pop(key, None)
+        if timer is not None:
+            timer.cancel()
 
 
 @socketio.on('disconnect')
 def handle_disconnect():
+    import eventlet
     info = sid_to_room.pop(request.sid, None)
     if not info:
         return
     room_id, player_num = info
-    if room_id not in rooms:
-        return
-    room = rooms[room_id]
-    room['players'].pop(player_num, None)
-    # Notify remaining player
-    socketio.emit('opponent_disconnected', {}, room=room_id)
+
+    def _fire_disconnect():
+        _disconnect_timers.pop((room_id, player_num), None)
+        if room_id not in rooms:
+            return
+        room = rooms[room_id]
+        # Only fire if player hasn't reconnected with a new sid
+        if player_num in room['players'] and room['players'][player_num] != request.sid:
+            return  # Player reconnected on a new socket
+        room['players'].pop(player_num, None)
+        socketio.emit('opponent_disconnected', {}, room=room_id)
+
+    # Grace period: wait 3 seconds before notifying (covers page navigations)
+    key = (room_id, player_num)
+    _disconnect_timers[key] = eventlet.spawn_after(3, _fire_disconnect)
 
 
 @socketio.on('select_character')
@@ -591,6 +608,19 @@ def handle_rematch():
     room['pending_moves'] = {1: None, 2: None}
     result = state_to_json(gs)
     socketio.emit('game_reset', result, room=room_id)
+
+
+@socketio.on('change_character')
+def handle_change_character():
+    room_id = session.get('room_id')
+    if not room_id or room_id not in rooms:
+        return
+    room = rooms[room_id]
+    room['game_state'] = None
+    room['chars'] = {1: None, 2: None}
+    room['pending_moves'] = {1: None, 2: None}
+    room['phase'] = 'char_select'
+    socketio.emit('go_char_select', {'room_id': room_id}, room=room_id)
 
 
 if __name__ == '__main__':

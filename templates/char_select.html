@@ -246,8 +246,16 @@
         if (locked) return;
         const player = cell.dataset.player;
         const char = cell.dataset.char;
-        sel[player] = char;
 
+        // Toggle: click same character again to deselect
+        if (sel[player] === char) {
+          sel[player] = null;
+          cell.classList.remove(`selected-p${player}`);
+          updateUI();
+          return;
+        }
+
+        sel[player] = char;
         document.querySelectorAll(`.hex-cell.selected-p${player}`).forEach(c => {
           c.classList.remove(`selected-p${player}`);
         });
