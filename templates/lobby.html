@@ -140,6 +140,142 @@
       font-size: 0.9rem;
     }
     .cancel-btn:hover { border-color: #e94560; color: #e94560; }
+
+    /* How to Play button */
+    .htp-btn { margin-bottom: 24px; padding: 10px 32px; font-size: 0.95rem; }
+
+    /* How to Play overlay */
+    .htp-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 20, 0.92);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    .htp-overlay.active { display: flex; }
+
+    .htp-modal {
+      background: #16213e;
+      border: 2px solid #1e3050;
+      border-radius: 12px;
+      padding: 28px 32px;
+      max-width: 820px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    .htp-close {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      background: none;
+      border: none;
+      color: #8899aa;
+      font-size: 1.8rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .htp-close:hover { color: #e94560; }
+    .htp-title { color: #e94560; font-size: 1.5rem; letter-spacing: 2px; margin-bottom: 6px; }
+
+    .htp-content { display: flex; gap: 32px; margin-top: 16px; }
+
+    /* Left column: character */
+    .htp-character {
+      flex: 0 0 180px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .htp-char-img {
+      width: 150px;
+      height: auto;
+      filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+    }
+    .htp-char-name {
+      color: #e94560;
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin: 6px 0 10px;
+    }
+    .htp-moves { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+    .htp-move-item {
+      padding: 7px 10px;
+      background: #0f1b2d;
+      border: 1px solid #2b5278;
+      border-radius: 6px;
+      color: #cde;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      text-align: left;
+    }
+    .htp-move-item:hover { border-color: #e94560; background: #1a2a4a; }
+    .htp-move-item .move-name { font-weight: bold; color: #7be; }
+    .htp-move-item .move-desc {
+      display: none;
+      color: #aab;
+      font-size: 0.78rem;
+      margin-top: 3px;
+    }
+    .htp-move-item:hover .move-desc,
+    .htp-move-item.expanded .move-desc { display: block; }
+
+    /* Right column: info */
+    .htp-info { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+    .htp-hp-section {
+      background: #0f1b2d;
+      border-radius: 8px;
+      padding: 12px 16px;
+      border: 1px solid #1e3050;
+      color: #cde;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    .htp-hp-section strong { color: #e94560; }
+    .htp-rps-section { text-align: center; }
+    .htp-rps-section h3 { color: #aab; font-size: 0.95rem; margin-bottom: 8px; }
+    .htp-rps-svg { max-width: 320px; margin: 0 auto; }
+    .htp-extra-rules {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+    }
+    .htp-rule {
+      background: #0f1b2d;
+      border: 1px solid #1e3050;
+      border-radius: 6px;
+      padding: 6px 14px;
+      color: #aab;
+      font-size: 0.82rem;
+    }
+    .htp-rule strong { color: #7be; }
+    .htp-rule em { color: #e94560; font-style: normal; }
+
+    @media (max-width: 768px) {
+      .htp-content { flex-direction: column; gap: 20px; }
+      .htp-character {
+        flex: none;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+      }
+      .htp-char-img { width: 100px; }
+      .htp-moves { flex-direction: row; flex-wrap: wrap; gap: 5px; }
+      .htp-move-item { flex: 0 0 calc(50% - 3px); }
+      .htp-modal { padding: 20px 16px; }
+    }
+    @media (max-width: 480px) {
+      .htp-move-item { flex: 0 0 100%; }
+    }
   </style>
 </head>
 <body>
@@ -149,6 +285,8 @@
   {% if error %}
   <p class="error-msg">{{ error }}</p>
   {% endif %}
+
+  <button class="lobby-btn secondary htp-btn" id="how-to-play-btn">How to Play</button>
 
   <div class="lobby-options">
     <!-- Create Room -->
@@ -192,12 +330,130 @@
     <button class="cancel-btn" onclick="window.location.href='/reset'">Cancel</button>
   </div>
 
+  <!-- How to Play modal -->
+  <div class="htp-overlay" id="htp-overlay">
+    <div class="htp-modal">
+      <button class="htp-close" id="htp-close">&times;</button>
+      <h2 class="htp-title">How to Play</h2>
+
+      <div class="htp-content">
+        <!-- Left: Jepr + moves -->
+        <div class="htp-character">
+          <img src="/static/models/Jepr.png" alt="Jepr" class="htp-char-img">
+          <div class="htp-char-name">JEPR</div>
+          <div class="htp-moves">
+            <div class="htp-move-item">
+              <span class="move-name">Strong</span>
+              <div class="move-desc">Strong attack. Deals 8 damage.</div>
+            </div>
+            <div class="htp-move-item">
+              <span class="move-name">Light</span>
+              <div class="move-desc">Light attack. Deals 3 damage.</div>
+            </div>
+            <div class="htp-move-item">
+              <span class="move-name">Shield</span>
+              <div class="move-desc">Shield / block. Heals 2 HP.</div>
+            </div>
+            <div class="htp-move-item">
+              <span class="move-name">Counter</span>
+              <div class="move-desc">Counter. Reflects incoming strong/light x1.</div>
+            </div>
+            <div class="htp-move-item">
+              <span class="move-name">Grab</span>
+              <div class="move-desc">Grab. Deals 6 damage.</div>
+            </div>
+            <div class="htp-move-item">
+              <span class="move-name">Taunt</span>
+              <div class="move-desc">Taunt. Doubles next damage dealt.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: game info + RPS triangle -->
+        <div class="htp-info">
+          <div class="htp-hp-section">
+            Each player starts with <strong>25 HP</strong>. Pick your moves each turn &mdash;
+            both players act simultaneously. Reduce your opponent to <strong>0 HP</strong> to win!
+          </div>
+
+          <div class="htp-rps-section">
+            <h3>Move Matchups</h3>
+            <svg class="htp-rps-svg" viewBox="0 0 320 290" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <marker id="arr-red" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <path d="M0,0 L8,3 L0,6" fill="#e94560"/>
+                </marker>
+                <marker id="arr-teal" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <path d="M0,0 L8,3 L0,6" fill="#4ecdc4"/>
+                </marker>
+                <marker id="arr-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                  <path d="M0,0 L8,3 L0,6" fill="#4a90d9"/>
+                </marker>
+              </defs>
+
+              <!-- Arrow: Grab -> Attacks (left side, curving out) -->
+              <path d="M 100,225 Q 30,150 115,75" fill="none" stroke="#e94560" stroke-width="2.5" marker-end="url(#arr-red)"/>
+              <text x="32" y="148" fill="#e94560" font-size="11" font-weight="bold" transform="rotate(-18,32,148)">beats</text>
+
+              <!-- Arrow: Shield/Counter -> Grab (bottom, curving down) -->
+              <path d="M 200,255 Q 160,310 120,255" fill="none" stroke="#4ecdc4" stroke-width="2.5" marker-end="url(#arr-teal)"/>
+              <text x="138" y="290" fill="#4ecdc4" font-size="11" font-weight="bold">beats</text>
+
+              <!-- Arrow: Attacks -> Shield/Counter (right side, curving out) -->
+              <path d="M 185,75 Q 270,150 220,225" fill="none" stroke="#4a90d9" stroke-width="2.5" marker-end="url(#arr-blue)"/>
+              <text x="248" y="148" fill="#4a90d9" font-size="11" font-weight="bold" transform="rotate(18,248,148)">beats</text>
+
+              <!-- Node: Attacks (top) -->
+              <ellipse cx="160" cy="50" rx="68" ry="30" fill="#1a1a2e" stroke="#e94560" stroke-width="2"/>
+              <text x="160" y="46" text-anchor="middle" fill="#e94560" font-size="14" font-weight="bold">Attacks</text>
+              <text x="160" y="62" text-anchor="middle" fill="#889" font-size="10">(Strong / Light)</text>
+
+              <!-- Node: Grab (bottom-left) -->
+              <ellipse cx="80" cy="245" rx="55" ry="28" fill="#1a1a2e" stroke="#4ecdc4" stroke-width="2"/>
+              <text x="80" y="250" text-anchor="middle" fill="#4ecdc4" font-size="14" font-weight="bold">Grab</text>
+
+              <!-- Node: Shield / Counter (bottom-right) -->
+              <ellipse cx="240" cy="245" rx="68" ry="28" fill="#1a1a2e" stroke="#4a90d9" stroke-width="2"/>
+              <text x="240" y="241" text-anchor="middle" fill="#4a90d9" font-size="14" font-weight="bold">Shield /</text>
+              <text x="240" y="257" text-anchor="middle" fill="#4a90d9" font-size="14" font-weight="bold">Counter</text>
+            </svg>
+
+            <div class="htp-extra-rules">
+              <div class="htp-rule"><strong>Light</strong> beats <strong>Strong</strong> (faster speed)</div>
+              <div class="htp-rule"><strong>Light</strong>, <strong>Strong</strong>, or <strong>Grab</strong> beat <em>Taunt</em></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="text-align:right;color:#556;font-size:0.7rem;margin-top:14px;">v1.1</p>
+    </div>
+  </div>
+
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
     // For online room creation, intercept the form and show waiting overlay
     document.getElementById('create-form').addEventListener('submit', function(e) {
       // Let the form submit normally -- the redirect will go to char_select
       // But if the room is waiting for an opponent, we handle it on char_select page
+    });
+
+    // How to Play modal
+    var htpOverlay = document.getElementById('htp-overlay');
+    document.getElementById('how-to-play-btn').addEventListener('click', function() {
+      htpOverlay.classList.add('active');
+    });
+    document.getElementById('htp-close').addEventListener('click', function() {
+      htpOverlay.classList.remove('active');
+    });
+    htpOverlay.addEventListener('click', function(e) {
+      if (e.target === htpOverlay) htpOverlay.classList.remove('active');
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') htpOverlay.classList.remove('active');
+    });
+    // Mobile: tap to expand move descriptions
+    document.querySelectorAll('.htp-move-item').forEach(function(item) {
+      item.addEventListener('click', function() { item.classList.toggle('expanded'); });
     });
   </script>
 </body>

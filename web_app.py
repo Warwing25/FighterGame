@@ -198,7 +198,7 @@ def get_attributes(gs):
     if char1 == 1:
         attrs1 = {'Tauntboost': gs['tauntboost']}
     elif char1 == 2:
-        attrs1 = {'Seed count': gs['seedcount'], '_note1': 'After 10 Seed, gaining Seed heals'}
+        attrs1 = {'Seed count': gs['seedcount']}
     elif char1 == 3:
         attrs1 = {'Blockability': gs['trueblockability'], 'Block boost': gs['blockboost']}
     elif char1 == 4:
@@ -215,7 +215,7 @@ def get_attributes(gs):
     if char2 == 1:
         attrs2 = {'Tauntboost': gs['tauntboost2']}
     elif char2 == 2:
-        attrs2 = {'Seed count': gs['seedcount2'], '_note1': 'After 10 Seed, gaining Seed heals'}
+        attrs2 = {'Seed count': gs['seedcount2']}
     elif char2 == 3:
         attrs2 = {'Blockability': gs['trueblockability2'], 'Block boost': gs['blockboost2']}
     elif char2 == 4:

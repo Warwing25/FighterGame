@@ -128,7 +128,9 @@
     }
     .attrs div { margin-bottom: 3px; }
     .attrs span { color: #fff; font-weight: bold; }
-    .attr-note { color: #556; font-style: italic; font-size: 0.72rem; margin-top: 4px; }
+    .attr-item { cursor: help; }
+    .attr-item:hover { color: #cde; }
+    .attr-active { color: #ffd700 !important; font-weight: bold; }
 
     /* ── Move buttons ── */
     .move-buttons { display: flex; flex-direction: column; gap: 8px; width: 100%; }
@@ -577,13 +579,61 @@
       log.scrollTop = log.scrollHeight;
     }
 
+    /* Attribute tooltip descriptions */
+    const ATTR_TIPS = {
+      'Tauntboost': 'Next damage is #x',
+      'Seed count': 'After 10 Seed, gaining Seed heals',
+      'Blockability': 'When active, next damage dealt adds block boost',
+      'Block boost': 'Boosts damage after activating Blockability',
+      'Taunt value': 'On 3 charges deal 25 damage',
+      'Remover strong': "Next move can't be strong for opponent",
+      'Remover fast': "Next move can't be fast for opponent",
+      'Heal condition': 'When active, heals become damage',
+      'Heal multiplier': 'Your next heal is #x',
+      'Grab multiplier': 'Next grab does #x damage',
+      'Armor': 'Armor is lowered before HP',
+      'Armor multiplier': 'Next armor gain is #x',
+      'Prevent': 'When active, prevent next damage taken',
+    };
+    /* "When active" attributes and their active condition */
+    const ACTIVE_ATTRS = {
+      'Blockability': function(v) { return v > 0; },
+      'Heal condition': function(v) { return v > 0; },
+      'Prevent': function(v) { return v === 0; },
+    };
+
     function renderAttrs(id, attrs) {
       const el = document.getElementById(id);
       el.innerHTML = Object.entries(attrs)
-        .map(([k, v]) => k.startsWith('_note')
-          ? `<div class="attr-note">${v}</div>`
-          : `<div>${k}: <span>${v}</span></div>`)
+        .map(function([k, v]) {
+          var tipText = (ATTR_TIPS[k] || '').replace('#', v);
+          var valHtml;
+          if (ACTIVE_ATTRS[k]) {
+            if (ACTIVE_ATTRS[k](v)) {
+              valHtml = '<span class="attr-active">Active</span>';
+            } else {
+              valHtml = '<span>Inactive</span>';
+            }
+          } else {
+            valHtml = '<span>' + v + '</span>';
+          }
+          return '<div class="attr-item" data-attr-tip="' + tipText.replace(/"/g, '&quot;') + '">' + k + ': ' + valHtml + '</div>';
+        })
         .join('');
+      bindAttrTips();
+    }
+
+    function bindAttrTips() {
+      document.querySelectorAll('.attr-item[data-attr-tip]').forEach(function(el) {
+        el.onmouseenter = function(e) {
+          tipTitle.textContent = '';
+          tipBody.textContent = el.dataset.attrTip;
+          tip.style.display = 'block';
+          positionTip(e);
+        };
+        el.onmousemove = positionTip;
+        el.onmouseleave = function() { tip.style.display = 'none'; };
+      });
     }
 
     function setMyButtonsEnabled(enabled) {
@@ -640,6 +690,10 @@
       tip.style.left = x + 'px';
       tip.style.top  = y + 'px';
     }
+
+    /* Initial render of attrs with tooltips and active styling */
+    renderAttrs('p1-attrs', {{ attrs1|tojson }});
+    renderAttrs('p2-attrs', {{ attrs2|tojson }});
   </script>
 </body>
 </html>
